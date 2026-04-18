@@ -750,8 +750,8 @@
                     </div>
                     <div class="actions">
                         ${b.status === 'pending' ? `
-                            <button class="btn btn-confirm update-status-btn" data-id="${b.booking_id}" data-action="confirmed">Confirm</button>
-                            <button class="btn btn-reject update-status-btn" data-id="${b.booking_id}" data-action="rejected">Reject</button>
+                            <button class="btn btn-confirm update-status-btn" data-id="${b.id}" data-action="confirmed">Confirm</button>
+                            <button class="btn btn-reject update-status-btn" data-id="${b.id}" data-action="rejected">Reject</button>
                         ` : `
                             <div style="grid-column: span 2; text-align: center; color: var(--accent); font-weight: 700;">
                                 Status: ${b.status.toUpperCase()}
@@ -785,11 +785,11 @@
                 document.getElementById('loader').style.display = 'flex';
                 
                 // First fetch booking details for the notification
-                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('booking_id', id).single();
+                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
                 if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
                 
                 console.log('Updating DB...');
-                const { error } = await sb.from('bookings').update({ status }).eq('booking_id', id);
+                const { error } = await sb.from('bookings').update({ status }).eq('id', id);
                 console.log('DB Update result error?', error);
                 
                 document.getElementById('loader').style.display = 'none';
