@@ -299,12 +299,17 @@
 
     <header>
         <div class="logo">TURFER admin</div>
-        <div class="switch-container" onclick="toggleNotifications()">
-            <span id="switch-label">Notifications OFF</span>
-            <label class="switch" onclick="event.stopPropagation()">
-                <input type="checkbox" id="push-toggle">
-                <span class="slider"></span>
-            </label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn" id="system-perm-btn" style="background: white; color: black; font-size: 11px; padding: 6px 12px; border: 1.5px solid #e2e8f0; border-radius: 100px;" onclick="triggerNativePermission()">
+                🔔 Allow System Notifications
+            </button>
+            <div class="switch-container" onclick="toggleNotifications()">
+                <span id="switch-label">Notifications OFF</span>
+                <label class="switch" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="push-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
     </header>
 
@@ -642,54 +647,65 @@
             location.reload();
         }
 
+        async function triggerNativePermission() {
+            const permission = await Notification.requestPermission();
+            
+            if (permission === 'granted') {
+                alert('Success! System permissions are CALLED. Now toggle the switch to ON to start receiving alerts.');
+                checkNotificationStatus();
+            } else if (permission === 'denied') {
+                alert('PERMISSION BLOCKED: You previously clicked "Block". To fix this:\n\n1. Click the "Lock" icon next to the website URL.\n2. Click "Site Settings".\n3. Click "Clear & Reset" or manually set "Notifications" to ALLOW.');
+            } else {
+                alert('Please click "Allow" on the system popup that appears.');
+            }
+        }
+
         async function toggleNotifications() {
             const checkbox = document.getElementById('push-toggle');
-            if (checkbox.checked) {
-                // User wants to turn OFF
-                if (confirm('Disable all booking notifications?')) {
-                    checkbox.checked = false;
+            const currentState = checkbox.checked; // This is the state BEFORE the click event finished if called via onclick
+            
+            // Note: Since it's a checkbox, the 'checked' property might already be toggled by the browser
+            if (Notification.permission !== 'granted') {
+                alert('You must allow System Notifications first! Click the "Allow System Notifications" button in the header.');
+                checkbox.checked = false;
+                return;
+            }
+
+            if (!currentState) {
+                // User turned it ON
+                await subscribeAdmin();
+            } else {
+                // User turned it OFF
+                if (confirm('Disable notifications?')) {
                     await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
-                    alert('Notifications Disabled.');
+                    checkbox.checked = false;
                     checkNotificationStatus();
                 } else {
                     checkbox.checked = true;
                 }
-            } else {
-                // User wants to turn ON
-                await requestNotificationPermission();
             }
         }
 
-        async function requestNotificationPermission() {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                try {
-                    const reg = await navigator.serviceWorker.ready;
-                    const sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                    });
+        async function subscribeAdmin() {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
 
-                    await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
-                    
-                    const { error } = await sb.from('admin_push_tokens').insert({
-                        owner_phone: adminPhone,
-                        subscription: sub
-                    });
+                await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
+                const { error } = await sb.from('admin_push_tokens').insert({
+                    owner_phone: adminPhone,
+                    subscription: sub
+                });
 
-                    if (error) {
-                        alert('Error saving subscription: ' + error.message);
-                        document.getElementById('push-toggle').checked = false;
-                    } else {
-                        checkNotificationStatus();
-                        alert('Notifications Enabled!');
-                    }
-                } catch(e) {
-                    alert('Failed to subscribe: ' + e.message);
-                    document.getElementById('push-toggle').checked = false;
-                }
-            } else {
-                alert('Notifications blocked. Please allow them in browser settings.');
+                if (error) throw error;
+                
+                alert('Notification Subscription Active!');
+                checkNotificationStatus();
+            } catch (e) {
+                alert('Subscription Failed: ' + e.message);
                 document.getElementById('push-toggle').checked = false;
             }
         }
@@ -698,17 +714,19 @@
             const checkbox = document.getElementById('push-toggle');
             const label = document.getElementById('switch-label');
             const card = document.getElementById('setup-notifications');
+            const permBtn = document.getElementById('system-perm-btn');
             
             if (Notification.permission === 'granted') {
-                checkbox.checked = true;
                 label.innerText = 'Notifications ON';
                 label.style.color = 'var(--accent)';
                 if (card) card.style.display = 'none';
+                if (permBtn) permBtn.style.display = 'none'; // Hide if already granted
             } else {
                 checkbox.checked = false;
                 label.innerText = 'Notifications OFF';
                 label.style.color = 'var(--text-muted)';
                 if (card) card.style.display = 'block';
+                if (permBtn) permBtn.style.display = 'block';
             }
         }
 
