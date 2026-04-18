@@ -367,14 +367,18 @@
 
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('sw.js').then(reg => {
-                        console.log('SW Registered');
+                    // Added versioning to skip server cache
+                    navigator.serviceWorker.register('sw.js?v=2').then(reg => {
+                        console.log('PWA: Service Worker Registered', reg.scope);
+                    }).catch(err => {
+                        console.error('PWA: Service Worker Failed', err);
                     });
                 });
             }
 
             // PWA Install Prompt
             window.addEventListener('beforeinstallprompt', (e) => {
+                console.log('PWA: Install prompt detected');
                 e.preventDefault();
                 deferredPrompt = e;
                 document.getElementById('install-card').style.display = 'block';
