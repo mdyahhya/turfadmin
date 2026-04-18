@@ -1,11 +1,13 @@
-const CACHE_NAME = 'turf-admin-v2';
+const CACHE_NAME = 'turf-admin-v3';
 const ASSETS = [
+    './',
     'index.html',
     'manifest.json',
+    'turf-192.png',
+    'turf-512.png',
     'turf.jpg'
 ];
 
-// Install: Cache basic assets
 self.addEventListener('install', event => {
     self.skipWaiting();
     event.waitUntil(
@@ -15,7 +17,6 @@ self.addEventListener('install', event => {
     );
 });
 
-// Activate: Clean up old caches
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys => {
@@ -26,8 +27,7 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch: NETWORK FIRST Strategy
-// This ensures you get the latest code from the network if online.
+// Network-first strategy for dynamic updating and true PWA functioning
 self.addEventListener('fetch', event => {
     event.respondWith(
         fetch(event.request).catch(() => {
@@ -36,14 +36,13 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Push Notifications
 self.addEventListener('push', function(event) {
     if (event.data) {
         const data = event.data.json();
         const options = {
             body: data.body,
-            icon: 'turf.jpg',
-            badge: 'turf.jpg',
+            icon: 'turf-192.png',
+            badge: 'turf-192.png',
             vibrate: [200, 100, 200],
             data: {
                 url: data.url || 'index.html'
