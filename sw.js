@@ -19,13 +19,10 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then(keys => {
-            return Promise.all(
-                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-            );
-        })
+        caches.keys().then(keys =>
+            Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
+        ).then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
 
 // Network-first strategy: Always try to get fresh data from the server first
@@ -67,6 +64,6 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     event.waitUntil(
-        clients.openWindow(event.notification.data.url)
+        clients.openWindow(new URL(event.notification.data.url, self.location.origin).href)
     );
 });
