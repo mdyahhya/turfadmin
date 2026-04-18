@@ -621,8 +621,8 @@
                     </div>
                     <div class="actions">
                         ${b.status === 'pending' ? `
-                            <button class="btn btn-confirm" onclick="updateStatus('${b.id}', 'confirmed')">Confirm</button>
-                            <button class="btn btn-reject" onclick="updateStatus('${b.id}', 'rejected')">Reject</button>
+                            <button class="btn btn-confirm" data-id="${b.id || b.booking_id}" onclick="updateStatus(this.dataset.id, 'confirmed')">Confirm</button>
+                            <button class="btn btn-reject" data-id="${b.id || b.booking_id}" onclick="updateStatus(this.dataset.id, 'rejected')">Reject</button>
                         ` : `
                             <div style="grid-column: span 2; text-align: center; color: var(--accent); font-weight: 700;">
                                 Status: ${b.status.toUpperCase()}
