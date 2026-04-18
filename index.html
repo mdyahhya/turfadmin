@@ -63,17 +63,79 @@
         }
 
         .status-badge {
-            padding: 6px 12px;
-            border-radius: 100px;
-            font-size: 12px;
-            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: #f1f5f9;
+            color: var(--text-muted);
         }
 
-        .status-online { background: #dcfce7; color: #166534; }
-        .status-offline { background: #fee2e2; color: #991b1b; }
+        /* Toggle Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 100px;
+            cursor: pointer;
+        }
+        
+        .switch-container span {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text);
+            text-transform: uppercase;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(14px);
+        }
 
         .container {
             max-width: 600px;
@@ -237,9 +299,12 @@
 
     <header>
         <div class="logo">TURFER admin</div>
-        <div id="push-status" class="status-badge status-offline">
-            <div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div>
-            Offline
+        <div class="switch-container" onclick="toggleNotifications()">
+            <span id="switch-label">Notifications OFF</span>
+            <label class="switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="push-toggle">
+                <span class="slider"></span>
+            </label>
         </div>
     </header>
 
@@ -577,6 +642,24 @@
             location.reload();
         }
 
+        async function toggleNotifications() {
+            const checkbox = document.getElementById('push-toggle');
+            if (checkbox.checked) {
+                // User wants to turn OFF
+                if (confirm('Disable all booking notifications?')) {
+                    checkbox.checked = false;
+                    await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
+                    alert('Notifications Disabled.');
+                    checkNotificationStatus();
+                } else {
+                    checkbox.checked = true;
+                }
+            } else {
+                // User wants to turn ON
+                await requestNotificationPermission();
+            }
+        }
+
         async function requestNotificationPermission() {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
@@ -587,7 +670,6 @@
                         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                     });
 
-                    // Delete existing token first (no UNIQUE constraint on owner_phone)
                     await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
                     
                     const { error } = await sb.from('admin_push_tokens').insert({
@@ -596,32 +678,37 @@
                     });
 
                     if (error) {
-                        console.error('Error saving push subscription:', error);
-                        alert('Failed to save notification subscription: ' + error.message);
+                        alert('Error saving subscription: ' + error.message);
+                        document.getElementById('push-toggle').checked = false;
                     } else {
                         checkNotificationStatus();
-                        alert('Notifications enabled! You will now receive booking alerts.');
+                        alert('Notifications Enabled!');
                     }
                 } catch(e) {
-                    console.error('Push subscribe error:', e);
                     alert('Failed to subscribe: ' + e.message);
+                    document.getElementById('push-toggle').checked = false;
                 }
             } else {
-                alert('Notifications blocked. Please allow notifications in your browser settings.');
+                alert('Notifications blocked. Please allow them in browser settings.');
+                document.getElementById('push-toggle').checked = false;
             }
         }
 
         function checkNotificationStatus() {
-            const badge = document.getElementById('push-status');
+            const checkbox = document.getElementById('push-toggle');
+            const label = document.getElementById('switch-label');
             const card = document.getElementById('setup-notifications');
+            
             if (Notification.permission === 'granted') {
-                badge.className = 'status-badge status-online';
-                badge.innerHTML = '<div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div> Active';
-                card.style.display = 'none';
+                checkbox.checked = true;
+                label.innerText = 'Notifications ON';
+                label.style.color = 'var(--accent)';
+                if (card) card.style.display = 'none';
             } else {
-                badge.className = 'status-badge status-offline';
-                badge.innerHTML = '<div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div> Inactive';
-                card.style.display = 'block';
+                checkbox.checked = false;
+                label.innerText = 'Notifications OFF';
+                label.style.color = 'var(--text-muted)';
+                if (card) card.style.display = 'block';
             }
         }
 
