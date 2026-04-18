@@ -222,6 +222,12 @@
 </head>
 <body>
 
+    <!-- Top Nav with Force Update Button -->
+    <div style="background: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 13px; z-index: 9999; position: relative;">
+        App version updated! If buttons are not working: 
+        <button onclick="forceAppUpdate()" style="background: white; color: #ef4444; border: none; border-radius: 4px; font-weight: bold; padding: 4px 10px; margin-left: 10px; cursor: pointer;">Update App Now</button>
+    </div>
+
     <div id="login-overlay">
         <h1>Turfer Admin</h1>
         <p style="margin-bottom: 30px; color: var(--text-muted);">Enter your registered phone number to manage your turfs.</p>
@@ -352,6 +358,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        async function forceAppUpdate() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (let r of regs) await r.unregister();
+                }
+                const cacheKeys = await caches.keys();
+                for (let c of cacheKeys) await caches.delete(c);
+                alert("Cache cleared! Reloading with new code.");
+                window.location.reload(true);
+            } catch(e) {
+                alert("Could not clear cache: " + e.message);
+                window.location.reload(true);
+            }
+        }
+
         const SB_URL = 'https://wqyrxwvkklhewuxhrhrx.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxeXJ4d3Zra2xoZXd1eGhyaHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODExNjEsImV4cCI6MjA5MTc1NzE2MX0.PRe-WxJrDJd02xYTfLBl2E7J7Hp1jozFhdhAinyxw38';
         const sb = supabase.createClient(SB_URL, SB_KEY);
