@@ -222,6 +222,12 @@
 </head>
 <body>
 
+    <!-- Top Nav with Force Update Button -->
+    <div style="background: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 13px; z-index: 9999; position: relative;">
+        App version updated! If buttons are not working: 
+        <button onclick="forceAppUpdate()" style="background: white; color: #ef4444; border: none; border-radius: 4px; font-weight: bold; padding: 4px 10px; margin-left: 10px; cursor: pointer;">Update App Now</button>
+    </div>
+
     <div id="login-overlay">
         <h1>Turfer Admin</h1>
         <p style="margin-bottom: 30px; color: var(--text-muted);">Enter your registered phone number to manage your turfs.</p>
@@ -352,6 +358,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        async function forceAppUpdate() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (let r of regs) await r.unregister();
+                }
+                const cacheKeys = await caches.keys();
+                for (let c of cacheKeys) await caches.delete(c);
+                alert("Cache cleared! Reloading with new code.");
+                window.location.reload(true);
+            } catch(e) {
+                alert("Could not clear cache: " + e.message);
+                window.location.reload(true);
+            }
+        }
+
         const SB_URL = 'https://wqyrxwvkklhewuxhrhrx.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxeXJ4d3Zra2xoZXd1eGhyaHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODExNjEsImV4cCI6MjA5MTc1NzE2MX0.PRe-WxJrDJd02xYTfLBl2E7J7Hp1jozFhdhAinyxw38';
         const sb = supabase.createClient(SB_URL, SB_KEY);
@@ -372,7 +394,7 @@
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     // Added versioning to skip server cache
-                    navigator.serviceWorker.register('sw.js?v=3').then(reg => {
+                    navigator.serviceWorker.register('sw.js?v=4').then(reg => {
                         console.log('PWA: Service Worker Registered', reg.scope);
                     }).catch(err => {
                         console.error('PWA: Service Worker Failed', err);
@@ -558,22 +580,34 @@
         async function requestNotificationPermission() {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
-                
-                const { error } = await sb.from('admin_push_tokens').upsert({
-                    owner_phone: adminPhone,
-                    subscription: sub
-                }, { onConflict: 'owner_phone' });
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
 
-                if (error) console.error('Error saving subscription:', error);
-                else {
-                    checkNotificationStatus();
-                    alert('Notifications enabled successfully!');
+                    // Delete existing token first (no UNIQUE constraint on owner_phone)
+                    await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
+                    
+                    const { error } = await sb.from('admin_push_tokens').insert({
+                        owner_phone: adminPhone,
+                        subscription: sub
+                    });
+
+                    if (error) {
+                        console.error('Error saving push subscription:', error);
+                        alert('Failed to save notification subscription: ' + error.message);
+                    } else {
+                        checkNotificationStatus();
+                        alert('Notifications enabled! You will now receive booking alerts.');
+                    }
+                } catch(e) {
+                    console.error('Push subscribe error:', e);
+                    alert('Failed to subscribe: ' + e.message);
                 }
+            } else {
+                alert('Notifications blocked. Please allow notifications in your browser settings.');
             }
         }
 
@@ -621,8 +655,8 @@
                     </div>
                     <div class="actions">
                         ${b.status === 'pending' ? `
-                            <button class="btn btn-confirm" onclick="updateStatus(${b.id}, 'confirmed')">Confirm</button>
-                            <button class="btn btn-reject" onclick="updateStatus(${b.id}, 'rejected')">Reject</button>
+                            <button class="btn btn-confirm update-status-btn" data-id="${b.id || b.booking_id}" data-action="confirmed">Confirm</button>
+                            <button class="btn btn-reject update-status-btn" data-id="${b.id || b.booking_id}" data-action="rejected">Reject</button>
                         ` : `
                             <div style="grid-column: span 2; text-align: center; color: var(--accent); font-weight: 700;">
                                 Status: ${b.status.toUpperCase()}
@@ -635,14 +669,64 @@
                     </div>
                 </div>
             `).join('');
+
+            // Added global event delegation for status buttons
+            document.querySelectorAll('.update-status-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const id = this.dataset.id;
+                    const action = this.dataset.action;
+                    if (!id) {
+                        alert("Critical Error: Booking ID is missing from this button!");
+                        return;
+                    }
+                    updateStatus(id, action);
+                };
+            });
         }
 
         async function updateStatus(id, status) {
-            document.getElementById('loader').style.display = 'flex';
-            const { error } = await sb.from('bookings').update({ status }).eq('id', id);
-            document.getElementById('loader').style.display = 'none';
-            if (error) alert('Error: ' + error.message);
-            else loadBookings();
+            console.log('UpdateStatus called with id:', id, 'status:', status);
+            try {
+                document.getElementById('loader').style.display = 'flex';
+                
+                // First fetch booking details for the notification
+                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+                if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
+                
+                console.log('Updating DB...');
+                const { error } = await sb.from('bookings').update({ status }).eq('id', id);
+                console.log('DB Update result error?', error);
+                
+                document.getElementById('loader').style.display = 'none';
+                if (error) {
+                    alert('Error updating status: ' + error.message);
+                    console.error(error);
+                } else {
+                // Trigger notification to user
+                if (bookingData && bookingData.user_phone) {
+                    try {
+                        const { data: userToken } = await sb.from('user_push_tokens').select('subscription').eq('user_phone', bookingData.user_phone).limit(1);
+                        if (userToken?.[0]) {
+                            const dateStr = new Date(bookingData.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            fetch('https://turferin.netlify.app/.netlify/functions/notify', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    subscription: userToken[0].subscription,
+                                    title: 'Booking ' + status.charAt(0).toUpperCase() + status.slice(1) + '!',
+                                    message: `Your booking at ${bookingData.turfs?.name || 'the turf'} on ${dateStr} has been ${status}.`,
+                                    url: 'book.html?tab=mybookings'
+                                })
+                            }).then(r => r.json()).then(res => console.log('User notified:', res));
+                        }
+                    } catch (e) { console.error('Notify user error:', e); }
+                }
+                loadBookings();
+                } // End of else
+            } catch (err) {
+                console.error('Fatal error in updateStatus:', err);
+                alert('An error occurred during status update. See console.');
+                document.getElementById('loader').style.display = 'none';
+            }
         }
 
         function subscribeToBookings() {
