@@ -234,15 +234,15 @@
     </header>
 
     <div class="container">
+        <!-- PWA Install Card (Moved to top) -->
+        <div id="install-card" class="notification-card" style="display: none; margin-bottom: 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            <h3>Install Admin App</h3>
+            <p>Add Turfer Admin to your home screen for faster access and better experience.</p>
+            <button class="btn btn-white" onclick="installPWA()">Install Now</button>
+        </div>
+
         <!-- Dashboard Tab -->
         <div id="tab-bookings">
-            <!-- PWA Install Card -->
-            <div id="install-card" class="notification-card" style="display: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                <h3>Install Admin App</h3>
-                <p>Add Turfer Admin to your home screen for faster access and better experience.</p>
-                <button class="btn btn-white" onclick="installPWA()">Install Now</button>
-            </div>
-
             <div id="setup-notifications" class="notification-card" style="display: none;">
                 <h3>Enable Notifications</h3>
                 <p>Get instant alerts when someone books your turf, even when the app is closed.</p>
