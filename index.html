@@ -639,10 +639,34 @@
 
         async function updateStatus(id, status) {
             document.getElementById('loader').style.display = 'flex';
+            
+            // First fetch booking details for the notification
+            const { data: bookingData } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+            
             const { error } = await sb.from('bookings').update({ status }).eq('id', id);
             document.getElementById('loader').style.display = 'none';
             if (error) alert('Error: ' + error.message);
-            else loadBookings();
+            else {
+                // Trigger notification to user
+                if (bookingData && bookingData.user_phone) {
+                    try {
+                        const { data: userToken } = await sb.from('user_push_tokens').select('subscription').eq('user_phone', bookingData.user_phone).limit(1);
+                        if (userToken?.[0]) {
+                            const dateStr = new Date(bookingData.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            fetch('https://turferin.netlify.app/.netlify/functions/notify', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    subscription: userToken[0].subscription,
+                                    title: 'Booking ' + status.charAt(0).toUpperCase() + status.slice(1) + '!',
+                                    message: `Your booking at ${bookingData.turfs?.name || 'the turf'} on ${dateStr} has been ${status}.`,
+                                    url: 'book.html?tab=mybookings'
+                                })
+                            });
+                        }
+                    } catch (e) { console.error('Notify user error:', e); }
+                }
+                loadBookings();
+            }
         }
 
         function subscribeToBookings() {
