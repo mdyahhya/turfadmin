@@ -650,18 +650,23 @@
         }
 
         async function updateStatus(id, status) {
-            document.getElementById('loader').style.display = 'flex';
-            
-            // First fetch booking details for the notification
-            const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
-            if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
-            
-            const { error } = await sb.from('bookings').update({ status }).eq('id', id);
-            document.getElementById('loader').style.display = 'none';
-            if (error) {
-                alert('Error updating status: ' + error.message);
-                console.error(error);
-            } else {
+            console.log('UpdateStatus called with id:', id, 'status:', status);
+            try {
+                document.getElementById('loader').style.display = 'flex';
+                
+                // First fetch booking details for the notification
+                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+                if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
+                
+                console.log('Updating DB...');
+                const { error } = await sb.from('bookings').update({ status }).eq('id', id);
+                console.log('DB Update result error?', error);
+                
+                document.getElementById('loader').style.display = 'none';
+                if (error) {
+                    alert('Error updating status: ' + error.message);
+                    console.error(error);
+                } else {
                 // Trigger notification to user
                 if (bookingData && bookingData.user_phone) {
                     try {
@@ -681,6 +686,11 @@
                     } catch (e) { console.error('Notify user error:', e); }
                 }
                 loadBookings();
+                } // End of else
+            } catch (err) {
+                console.error('Fatal error in updateStatus:', err);
+                alert('An error occurred during status update. See console.');
+                document.getElementById('loader').style.display = 'none';
             }
         }
 
