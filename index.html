@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Turfer Admin — Manage Your Turfs</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #000000;
+            --accent: #10b981;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --radius: 16px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Syne', sans-serif;
+        }
+
+        header {
+            background: var(--card);
+            padding: 24px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-online { background: #dcfce7; color: #166534; }
+        .status-offline { background: #fee2e2; color: #991b1b; }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .notification-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .notification-card h3 { margin-bottom: 8px; font-size: 20px; }
+        .notification-card p { opacity: 0.8; font-size: 14px; margin-bottom: 16px; }
+        
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-white { background: white; color: black; }
+        .btn-white:active { transform: scale(0.95); opacity: 0.9; }
+
+        .booking-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .booking-user { font-weight: 700; font-size: 16px; }
+        .booking-time { font-size: 13px; color: var(--text-muted); }
+
+        .booking-details {
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn-confirm { background: var(--accent); color: white; }
+        .btn-call { background: #3b82f6; color: white; }
+        .btn-reject { background: #ef4444; color: white; }
+
+        /* Tabs */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .nav-item.active { color: var(--primary); }
+
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <h1>Turfer Admin</h1>
+        <p style="margin-bottom: 30px; color: var(--text-muted);">Enter your registered phone number to manage your turfs.</p>
+        <input type="tel" id="admin-phone" class="login-input" placeholder="Owner Phone (e.g. 9876543210)">
+        <button class="btn btn-primary" style="width: 100%; background: black; color: white; padding: 18px;" onclick="doLogin()">Get Started</button>
+    </div>
+
+    <header>
+        <div class="logo">TURFER admin</div>
+        <div id="push-status" class="status-badge status-offline">
+            <div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div>
+            Offline
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Dashboard Tab -->
+        <div id="tab-bookings">
+            <!-- PWA Install Card -->
+            <div id="install-card" class="notification-card" style="display: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <h3>Install Admin App</h3>
+                <p>Add Turfer Admin to your home screen for faster access and better experience.</p>
+                <button class="btn btn-white" onclick="installPWA()">Install Now</button>
+            </div>
+
+            <div id="setup-notifications" class="notification-card" style="display: none;">
+                <h3>Enable Notifications</h3>
+                <p>Get instant alerts when someone books your turf, even when the app is closed.</p>
+                <button class="btn btn-white" onclick="requestNotificationPermission()">Allow Notifications</button>
+            </div>
+
+            <h2 style="margin-bottom: 20px;">Recent Bookings</h2>
+            <div id="bookings-list">
+                <p style="text-align: center; color: var(--text-muted); margin-top: 40px;">Checking for new bookings...</p>
+            </div>
+        </div>
+
+        <!-- My Turfs Tab -->
+        <div id="tab-turfs" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2>My Turfs</h2>
+                <button class="btn btn-primary" style="background: var(--accent); color: white;" onclick="showAddTurfForm()">+ Add New</button>
+            </div>
+
+            <div id="my-turfs-list">
+                <!-- User's turfs loaded here -->
+            </div>
+        </div>
+
+        <!-- Add/Edit Turf Form (Hidden Overlay) -->
+        <div id="turf-form-overlay" style="display:none; position:fixed; inset:0; background:white; z-index:2000; padding:20px; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h2 id="form-title">Add New Turf</h2>
+                <button class="btn" onclick="hideAddTurfForm()">Close</button>
+            </div>
+            
+            <form id="turf-form" onsubmit="saveTurf(event)">
+                <input type="hidden" id="edit-id">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Turf Name</label>
+                    <input type="text" id="t-name" class="login-input" placeholder="e.g. Wembley Arena" required>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">City</label>
+                        <select id="t-city" class="login-input" required>
+                            <option value="Solapur">Solapur</option>
+                            <option value="Mumbai">Mumbai</option>
+                            <option value="Pune">Pune</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Price / hour</label>
+                        <input type="number" id="t-price" class="login-input" placeholder="₹ 800" required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Sport Type</label>
+                        <select id="t-type" class="login-input" required>
+                            <option value="football">Football</option>
+                            <option value="cricket">Cricket</option>
+                            <option value="badminton">Badminton</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Surface</label>
+                        <select id="t-surface" class="login-input">
+                            <option value="Artificial">Artificial</option>
+                            <option value="Natural">Natural</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Turf Images (Select Multiple)</label>
+                    <input type="file" id="t-file-input" class="login-input" accept="image/*" multiple>
+                    <div id="file-status" style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:10px;">Select photos of your turf</div>
+                    <input type="hidden" id="t-images"> <!-- Keeps existing URLs during edit -->
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px;">Description</label>
+                    <textarea id="t-desc" class="login-input" placeholder="Details about your turf..." rows="3"></textarea>
+                </div>
+                <button type="submit" id="save-btn" class="btn btn-primary" style="width:100%; background:black; color:white; padding:18px;">Save Turf Details</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="loading" id="loader">
+        <div class="spinner"></div>
+        <div id="upload-progress" style="position:absolute; bottom:30%; color:black; font-weight:700; font-size:14px;">Uploading...</div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" id="nav-bookings" onclick="switchTab('bookings')">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            Bookings
+        </a>
+        <a href="#" class="nav-item" id="nav-turfs" onclick="switchTab('turfs')">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            My Turfs
+        </a>
+        <a href="#" class="nav-item" onclick="logout()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Logout
+        </a>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SB_URL = 'https://wqyrxwvkklhewuxhrhrx.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxeXJ4d3Zra2xoZXd1eGhyaHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODExNjEsImV4cCI6MjA5MTc1NzE2MX0.PRe-WxJrDJd02xYTfLBl2E7J7Hp1jozFhdhAinyxw38';
+        const sb = supabase.createClient(SB_URL, SB_KEY);
+        const VAPID_PUBLIC_KEY = 'BOTrmuFW0biZCv-2GRt9SFuuSWbcxc_kNZ2-WK--AejUCm8t6NKVwjeV0zW9RiBkjzjaatlWRUz_rzau6hGNpLM';
+
+        let adminPhone = localStorage.getItem('turf_admin_phone');
+        let deferredPrompt;
+
+        async function init() {
+            if (adminPhone) {
+                document.getElementById('login-overlay').style.display = 'none';
+                checkNotificationStatus();
+                loadBookings();
+                loadMyTurfs();
+                subscribeToBookings();
+            }
+
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('sw.js').then(reg => {
+                        console.log('SW Registered');
+                    });
+                });
+            }
+
+            // PWA Install Prompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                document.getElementById('install-card').style.display = 'block';
+            });
+
+            window.addEventListener('appinstalled', (evt) => {
+                document.getElementById('install-card').style.display = 'none';
+            });
+
+            // File input listener
+            document.getElementById('t-file-input').addEventListener('change', function(e) {
+                const count = e.target.files.length;
+                document.getElementById('file-status').innerText = count > 0 ? `${count} files selected` : 'Select photos of your turf';
+            });
+        }
+
+        async function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                document.getElementById('install-card').style.display = 'none';
+            }
+            deferredPrompt = null;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-bookings').style.display = tab === 'bookings' ? 'block' : 'none';
+            document.getElementById('tab-turfs').style.display = tab === 'turfs' ? 'block' : 'none';
+            
+            document.getElementById('nav-bookings').className = 'nav-item ' + (tab === 'bookings' ? 'active' : '');
+            document.getElementById('nav-turfs').className = 'nav-item ' + (tab === 'turfs' ? 'active' : '');
+        }
+
+        function showAddTurfForm() {
+            document.getElementById('turf-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('t-images').value = '';
+            document.getElementById('file-status').innerText = 'Select photos of your turf';
+            document.getElementById('form-title').innerText = 'Add New Turf';
+            document.getElementById('turf-form-overlay').style.display = 'block';
+        }
+
+        function hideAddTurfForm() {
+            document.getElementById('turf-form-overlay').style.display = 'none';
+        }
+
+        async function saveTurf(e) {
+            e.preventDefault();
+            const loader = document.getElementById('loader');
+            const progress = document.getElementById('upload-progress');
+            loader.style.display = 'flex';
+            progress.innerText = 'Uploading images...';
+            
+            const files = document.getElementById('t-file-input').files;
+            let finalImageUrls = document.getElementById('t-images').value; // Keep existing ones if editing
+
+            // Upload files if selected
+            if (files.length > 0) {
+                const uploadedUrls = [];
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${adminPhone}_${Date.now()}_${i}.${fileExt}`;
+                    
+                    progress.innerText = `Uploading image ${i+1}/${files.length}...`;
+                    
+                    const { data, error: uploadErr } = await sb.storage
+                        .from('turf-images')
+                        .upload(fileName, file);
+                    
+                    if (uploadErr) {
+                        console.error('Upload error:', uploadErr);
+                        continue;
+                    }
+                    
+                    const { data: { publicUrl } } = sb.storage
+                        .from('turf-images')
+                        .getPublicUrl(fileName);
+                    
+                    uploadedUrls.push(publicUrl);
+                }
+                
+                // Add new URLs to any existing ones
+                const allUrls = finalImageUrls ? finalImageUrls.split(',').concat(uploadedUrls) : uploadedUrls;
+                finalImageUrls = allUrls.join(',');
+            }
+
+            progress.innerText = 'Saving turf details...';
+            
+            const turfData = {
+                name: document.getElementById('t-name').value,
+                city: document.getElementById('t-city').value,
+                price: parseInt(document.getElementById('t-price').value),
+                turf_type: document.getElementById('t-type').value,
+                surface: document.getElementById('t-surface').value,
+                image_urls: finalImageUrls,
+                description: document.getElementById('t-desc').value,
+                owner_phone: adminPhone,
+                is_active: true
+            };
+
+            const editId = document.getElementById('edit-id').value;
+            let result;
+
+            if (editId) {
+                result = await sb.from('turfs').update(turfData).eq('turf_id', editId);
+            } else {
+                result = await sb.from('turfs').insert([turfData]);
+            }
+
+            loader.style.display = 'none';
+            if (result.error) alert('Error saving: ' + result.error.message);
+            else {
+                hideAddTurfForm();
+                loadMyTurfs();
+                alert('Turf saved successfully!');
+            }
+        }
+
+        async function loadMyTurfs() {
+            const { data, error } = await sb.from('turfs')
+                .select('*')
+                .eq('owner_phone', adminPhone)
+                .order('created_at', { ascending: false });
+
+            if (error) return console.error(error);
+            
+            const container = document.getElementById('my-turfs-list');
+            if (data.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">You haven\'t added any turfs yet.</p>';
+                return;
+            }
+
+            container.innerHTML = data.map(t => `
+                <div class="booking-card" style="padding: 12px; display: flex; gap: 12px; align-items: center;">
+                    <img src="${t.image_urls?.split(',')[0] || 'https://via.placeholder.com/150'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; background: #eee;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 15px;">${t.name}</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">${t.city} · ₹${t.price}/hr</div>
+                    </div>
+                    <button class="btn btn-call" style="background: var(--text); padding: 8px 12px;" onclick="editTurf(${JSON.stringify(t).replace(/"/g, '&quot;')})">Edit</button>
+                </div>
+            `).join('');
+        }
+
+        function editTurf(t) {
+            document.getElementById('form-title').innerText = 'Edit Turf';
+            document.getElementById('edit-id').value = t.turf_id;
+            document.getElementById('t-name').value = t.name;
+            document.getElementById('t-city').value = t.city;
+            document.getElementById('t-price').value = t.price;
+            document.getElementById('t-type').value = t.turf_type;
+            document.getElementById('t-surface').value = t.surface;
+            document.getElementById('t-images').value = t.image_urls || '';
+            document.getElementById('t-desc').value = t.description || '';
+            document.getElementById('file-status').innerText = 'Selected images will be added to existing ones';
+            document.getElementById('turf-form-overlay').style.display = 'block';
+        }
+
+        function doLogin() {
+            const phone = document.getElementById('admin-phone').value.trim();
+            if (phone.length < 10) return alert('Enter a valid phone number');
+            localStorage.setItem('turf_admin_phone', phone);
+            location.reload();
+        }
+
+        function logout() {
+            localStorage.removeItem('turf_admin_phone');
+            location.reload();
+        }
+
+        async function requestNotificationPermission() {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+                
+                const { error } = await sb.from('admin_push_tokens').upsert({
+                    owner_phone: adminPhone,
+                    subscription: sub
+                }, { onConflict: 'owner_phone' });
+
+                if (error) console.error('Error saving subscription:', error);
+                else {
+                    checkNotificationStatus();
+                    alert('Notifications enabled successfully!');
+                }
+            }
+        }
+
+        function checkNotificationStatus() {
+            const badge = document.getElementById('push-status');
+            const card = document.getElementById('setup-notifications');
+            if (Notification.permission === 'granted') {
+                badge.className = 'status-badge status-online';
+                badge.innerHTML = '<div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div> Active';
+                card.style.display = 'none';
+            } else {
+                badge.className = 'status-badge status-offline';
+                badge.innerHTML = '<div style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></div> Inactive';
+                card.style.display = 'block';
+            }
+        }
+
+        async function loadBookings() {
+            const { data, error } = await sb.from('bookings')
+                .select('*, turfs(name, owner_phone)')
+                .order('created_at', { ascending: false });
+
+            if (error) return console.error(error);
+            const adminBookings = data.filter(b => b.turfs?.owner_phone === adminPhone);
+            renderBookings(adminBookings);
+        }
+
+        function renderBookings(list) {
+            const container = document.getElementById('bookings-list');
+            if (list.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 40px;">No bookings found for your turfs.</p>';
+                return;
+            }
+
+            container.innerHTML = list.map(b => `
+                <div class="booking-card">
+                    <div class="booking-header">
+                        <span class="booking-user">${b.user_name}</span>
+                        <span class="booking-time">${new Date(b.booking_date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="booking-details">
+                        Turf: <b>${b.turfs?.name}</b><br>
+                        Slots: ${b.time_slots}<br>
+                        Price: ₹${b.total_price}
+                    </div>
+                    <div class="actions">
+                        ${b.status === 'pending' ? `
+                            <button class="btn btn-confirm" onclick="updateStatus(${b.id}, 'confirmed')">Confirm</button>
+                            <button class="btn btn-reject" onclick="updateStatus(${b.id}, 'rejected')">Reject</button>
+                        ` : `
+                            <div style="grid-column: span 2; text-align: center; color: var(--accent); font-weight: 700;">
+                                Status: ${b.status.toUpperCase()}
+                            </div>
+                        `}
+                        <button class="btn btn-call" style="grid-column: span 2; margin-top: 8px;" onclick="window.location.href='tel:${b.user_phone}'">
+                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                             Call Customer
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateStatus(id, status) {
+            document.getElementById('loader').style.display = 'flex';
+            const { error } = await sb.from('bookings').update({ status }).eq('id', id);
+            document.getElementById('loader').style.display = 'none';
+            if (error) alert('Error: ' + error.message);
+            else loadBookings();
+        }
+
+        function subscribeToBookings() {
+            sb.channel('admin-bookings')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, payload => {
+                    loadBookings();
+                })
+                .subscribe();
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+
+        init();
+    </script>
+</body>
+</html>
