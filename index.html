@@ -687,7 +687,7 @@
                 await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
                 const { error } = await sb.from('admin_push_tokens').insert({
                     owner_phone: adminPhone,
-                    subscription: sub
+                    subscription: JSON.stringify(sub)
                 });
 
                 if (error) throw error;
@@ -700,17 +700,18 @@
             }
         }
 
-        function checkNotificationStatus() {
+        async function checkNotificationStatus() {
             const checkbox = document.getElementById('push-toggle');
             const label = document.getElementById('switch-label');
             const card = document.getElementById('setup-notifications');
             
             if (Notification.permission === 'granted') {
-                // Check if we have an actual subscription in DB? For now just visual
-                checkbox.checked = true;
-                label.innerText = 'Notifications ON';
-                label.style.color = 'var(--accent)';
-                if (card) card.style.display = 'none';
+                const { data: t } = await sb.from('admin_push_tokens').select('owner_phone').eq('owner_phone', adminPhone).limit(1);
+                const hasToken = t && t.length > 0;
+                checkbox.checked = hasToken;
+                label.innerText = hasToken ? 'Notifications ON' : 'Re-enable Notifications';
+                if (hasToken) label.style.color = 'var(--accent)';
+                if (card && hasToken) card.style.display = 'none';
             } else {
                 checkbox.checked = false;
                 label.innerText = 'Notifications OFF';
@@ -749,8 +750,8 @@
                     </div>
                     <div class="actions">
                         ${b.status === 'pending' ? `
-                            <button class="btn btn-confirm update-status-btn" data-id="${b.id || b.booking_id}" data-action="confirmed">Confirm</button>
-                            <button class="btn btn-reject update-status-btn" data-id="${b.id || b.booking_id}" data-action="rejected">Reject</button>
+                            <button class="btn btn-confirm update-status-btn" data-id="${b.booking_id}" data-action="confirmed">Confirm</button>
+                            <button class="btn btn-reject update-status-btn" data-id="${b.booking_id}" data-action="rejected">Reject</button>
                         ` : `
                             <div style="grid-column: span 2; text-align: center; color: var(--accent); font-weight: 700;">
                                 Status: ${b.status.toUpperCase()}
@@ -784,11 +785,11 @@
                 document.getElementById('loader').style.display = 'flex';
                 
                 // First fetch booking details for the notification
-                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+                const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('booking_id', id).single();
                 if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
                 
                 console.log('Updating DB...');
-                const { error } = await sb.from('bookings').update({ status }).eq('id', id);
+                const { error } = await sb.from('bookings').update({ status }).eq('booking_id', id);
                 console.log('DB Update result error?', error);
                 
                 document.getElementById('loader').style.display = 'none';
@@ -804,8 +805,11 @@
                             const dateStr = new Date(bookingData.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
                             fetch('https://turferin.netlify.app/.netlify/functions/notify', {
                                 method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    subscription: userToken[0].subscription,
+                                    subscription: typeof userToken[0].subscription === 'string'
+                                        ? JSON.parse(userToken[0].subscription)
+                                        : userToken[0].subscription,
                                     title: 'Booking ' + status.charAt(0).toUpperCase() + status.slice(1) + '!',
                                     message: `Your booking at ${bookingData.turfs?.name || 'the turf'} on ${dateStr} has been ${status}.`,
                                     url: 'book.html?tab=mybookings'
