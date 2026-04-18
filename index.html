@@ -372,7 +372,7 @@
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     // Added versioning to skip server cache
-                    navigator.serviceWorker.register('sw.js?v=3').then(reg => {
+                    navigator.serviceWorker.register('sw.js?v=4').then(reg => {
                         console.log('PWA: Service Worker Registered', reg.scope);
                     }).catch(err => {
                         console.error('PWA: Service Worker Failed', err);
@@ -558,22 +558,34 @@
         async function requestNotificationPermission() {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
-                
-                const { error } = await sb.from('admin_push_tokens').upsert({
-                    owner_phone: adminPhone,
-                    subscription: sub
-                }, { onConflict: 'owner_phone' });
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
 
-                if (error) console.error('Error saving subscription:', error);
-                else {
-                    checkNotificationStatus();
-                    alert('Notifications enabled successfully!');
+                    // Delete existing token first (no UNIQUE constraint on owner_phone)
+                    await sb.from('admin_push_tokens').delete().eq('owner_phone', adminPhone);
+                    
+                    const { error } = await sb.from('admin_push_tokens').insert({
+                        owner_phone: adminPhone,
+                        subscription: sub
+                    });
+
+                    if (error) {
+                        console.error('Error saving push subscription:', error);
+                        alert('Failed to save notification subscription: ' + error.message);
+                    } else {
+                        checkNotificationStatus();
+                        alert('Notifications enabled! You will now receive booking alerts.');
+                    }
+                } catch(e) {
+                    console.error('Push subscribe error:', e);
+                    alert('Failed to subscribe: ' + e.message);
                 }
+            } else {
+                alert('Notifications blocked. Please allow notifications in your browser settings.');
             }
         }
 

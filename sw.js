@@ -1,4 +1,4 @@
-const CACHE_NAME = 'turf-admin-v3';
+const CACHE_NAME = 'turf-admin-v4';
 const ASSETS = [
     './',
     'index.html',
@@ -38,23 +38,20 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('push', function(event) {
     if (event.data) {
-        const data = event.data.json();
-        const options = {
-            body: data.body,
-            icon: 'turf-192.png',
-            badge: 'turf-192.png',
-            vibrate: [200, 100, 200],
-            data: {
-                url: data.url || 'index.html'
-            },
-            actions: [
-                { action: 'open', title: 'View Booking' }
-            ]
-        };
-
-        event.waitUntil(
-            self.registration.showNotification(data.title, options)
-        );
+        try {
+            const data = event.data.json();
+            const options = {
+                body: data.message || data.body || 'New notification',
+                icon: 'turf-192.png',
+                badge: 'turf-192.png',
+                vibrate: [200, 100, 200],
+                data: { url: data.url || 'index.html' },
+                actions: [{ action: 'open', title: 'View Booking' }]
+            };
+            event.waitUntil(self.registration.showNotification(data.title || 'Turfer Admin', options));
+        } catch(e) {
+            event.waitUntil(self.registration.showNotification('Turfer Admin', { body: event.data.text(), icon: 'turf-192.png' }));
+        }
     }
 });
 
