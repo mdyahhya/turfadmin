@@ -641,12 +641,15 @@
             document.getElementById('loader').style.display = 'flex';
             
             // First fetch booking details for the notification
-            const { data: bookingData } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+            const { data: bookingData, error: fetchErr } = await sb.from('bookings').select('*, turfs(name)').eq('id', id).single();
+            if (fetchErr) console.error('Error fetching booking for notify:', fetchErr);
             
             const { error } = await sb.from('bookings').update({ status }).eq('id', id);
             document.getElementById('loader').style.display = 'none';
-            if (error) alert('Error: ' + error.message);
-            else {
+            if (error) {
+                alert('Error updating status: ' + error.message);
+                console.error(error);
+            } else {
                 // Trigger notification to user
                 if (bookingData && bookingData.user_phone) {
                     try {
@@ -661,7 +664,7 @@
                                     message: `Your booking at ${bookingData.turfs?.name || 'the turf'} on ${dateStr} has been ${status}.`,
                                     url: 'book.html?tab=mybookings'
                                 })
-                            });
+                            }).then(r => r.json()).then(res => console.log('User notified:', res));
                         }
                     } catch (e) { console.error('Notify user error:', e); }
                 }
